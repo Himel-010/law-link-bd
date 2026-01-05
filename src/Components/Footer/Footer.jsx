@@ -2,13 +2,42 @@
 
 import { Scale, Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from "lucide-react"
 import { motion } from "framer-motion"
+import { useSelector } from "react-redux"
+import i18n from "../../json/footer.json" // adjust path if needed
 
 const Footer = () => {
+  const currentLanguage = useSelector((state) => state.language.currentLanguage)
+  const t = i18n[currentLanguage].footer
+
   const footerLinks = {
-    "Quick Links": ["Home", "Find Lawyers", "Submit Case", "Resources", "About Us"],
-    "Legal Services": ["Family Law", "Property Law", "Immigration", "Criminal Defense", "Civil Rights"],
-    Resources: ["Legal Documents", "FAQ", "Blog", "Case Studies", "Legal Guides"],
-    Support: ["Help Center", "Contact Us", "Privacy Policy", "Terms of Service", "Accessibility"],
+    [t.sections.quickLinks.title]: [
+      t.sections.quickLinks.items.home,
+      t.sections.quickLinks.items.findLawyers,
+      t.sections.quickLinks.items.submitCase,
+      t.sections.quickLinks.items.resources,
+      t.sections.quickLinks.items.aboutUs,
+    ],
+    [t.sections.legalServices.title]: [
+      t.sections.legalServices.items.familyLaw,
+      t.sections.legalServices.items.propertyLaw,
+      t.sections.legalServices.items.immigration,
+      t.sections.legalServices.items.criminalDefense,
+      t.sections.legalServices.items.civilRights,
+    ],
+    [t.sections.resources.title]: [
+      t.sections.resources.items.legalDocuments,
+      t.sections.resources.items.faq,
+      t.sections.resources.items.blog,
+      t.sections.resources.items.caseStudies,
+      t.sections.resources.items.legalGuides,
+    ],
+    [t.sections.support.title]: [
+      t.sections.support.items.helpCenter,
+      t.sections.support.items.contactUs,
+      t.sections.support.items.privacyPolicy,
+      t.sections.support.items.termsOfService,
+      t.sections.support.items.accessibility,
+    ],
   }
 
   const containerVariants = {
@@ -39,12 +68,15 @@ const Footer = () => {
           <motion.div className="lg:col-span-2" variants={itemVariants}>
             <div className="flex items-center gap-2 mb-4">
               <Scale className="w-8 h-8 text-cyan-600" />
-              <span className="text-xl font-bold text-slate-800">LegalAid</span>
+              <span className="text-xl font-bold text-slate-800">
+                {t.brand.name}
+              </span>
             </div>
+
             <p className="text-slate-600 mb-6 leading-relaxed">
-              Connecting underserved communities with qualified volunteer lawyers to ensure access to justice for
-              everyone. Our platform makes legal help accessible, transparent, and effective.
+              {t.brand.description}
             </p>
+
             <div className="space-y-2">
               <motion.div
                 className="flex items-center gap-2 text-slate-600"
@@ -52,30 +84,34 @@ const Footer = () => {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <Mail className="w-4 h-4 text-cyan-600" />
-                <span>support@legalaid.com</span>
+                <span>{t.contact.email}</span>
               </motion.div>
+
               <motion.div
                 className="flex items-center gap-2 text-slate-600"
                 whileHover={{ x: 5 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <Phone className="w-4 h-4 text-cyan-600" />
-                <span>+1 (555) 123-4567</span>
+                <span>{t.contact.phone}</span>
               </motion.div>
+
               <motion.div
                 className="flex items-center gap-2 text-slate-600"
                 whileHover={{ x: 5 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <MapPin className="w-4 h-4 text-cyan-600" />
-                <span>123 Justice Street, Legal City, LC 12345</span>
+                <span>{t.contact.address}</span>
               </motion.div>
             </div>
           </motion.div>
 
           {Object.entries(footerLinks).map(([category, links]) => (
             <motion.div key={category} variants={itemVariants}>
-              <h3 className="font-semibold text-slate-800 mb-4">{category}</h3>
+              <h3 className="font-semibold text-slate-800 mb-4">
+                {category}
+              </h3>
               <ul className="space-y-2">
                 {links.map((link) => (
                   <li key={link}>
@@ -101,8 +137,9 @@ const Footer = () => {
           transition={{ delay: 0.3 }}
         >
           <div className="text-slate-600 text-sm mb-4 md:mb-0">
-            © 2024 LegalAid Platform. All rights reserved. | Making justice accessible to everyone.
+            {t.bottom.copyright}
           </div>
+
           <div className="flex items-center space-x-4">
             {[Facebook, Twitter, Linkedin, Instagram].map((Icon, index) => (
               <motion.button

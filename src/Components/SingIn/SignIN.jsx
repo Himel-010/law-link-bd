@@ -1,8 +1,12 @@
 "use client"
 
 import { useState } from "react"
+import { useSelector } from "react-redux"
 import { motion } from "framer-motion"
 import { Eye, EyeOff, Mail, Lock, Scale, ArrowLeft } from "lucide-react"
+
+// ✅ IMPORT SIGNIN I18N JSON
+import signinI18n from "../../json/signin.json" // <-- adjust path if needed
 
 const SignIn = ({ onBack, onSwitchToSignUp }) => {
   const [showPassword, setShowPassword] = useState(false)
@@ -11,6 +15,12 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
     password: "",
     rememberMe: false,
   })
+
+  // ✅ Get current language from Redux
+  const currentLanguage = useSelector((state) => state.language.currentLanguage)
+
+  // ✅ Pick correct language texts
+  const t = signinI18n[currentLanguage].signin
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -41,7 +51,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
           whileHover={{ x: -5 }}
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Home
+          {t.backHome}
         </motion.button>
 
         {/* Header */}
@@ -53,10 +63,10 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
             transition={{ delay: 0.2, type: "spring" }}
           >
             <Scale className="w-8 h-8 text-cyan-600" />
-            <h1 className="text-2xl font-bold text-gray-900">LegalAid</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t.brand}</h1>
           </motion.div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
-          <p className="text-gray-600">Please sign in to your account to continue</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t.welcomeTitle}</h2>
+          <p className="text-gray-600">{t.welcomeDesc}</p>
         </div>
 
         {/* Form */}
@@ -69,7 +79,9 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
         >
           {/* Email Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t.emailLabel}
+            </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -78,7 +90,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                placeholder="Enter your email"
+                placeholder={t.emailPlaceholder}
                 required
               />
             </div>
@@ -86,7 +98,9 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
 
           {/* Password Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t.passwordLabel}
+            </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -95,7 +109,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                placeholder="Enter your password"
+                placeholder={t.passwordPlaceholder}
                 required
               />
               <button
@@ -103,7 +117,11 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
@@ -118,10 +136,13 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
                 onChange={handleChange}
                 className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
               />
-              <span className="text-sm text-gray-600">Remember me</span>
+              <span className="text-sm text-gray-600">{t.rememberMe}</span>
             </label>
-            <button type="button" className="text-sm text-cyan-600 hover:text-cyan-700 transition-colors">
-              Forgot password?
+            <button
+              type="button"
+              className="text-sm text-cyan-600 hover:text-cyan-700 transition-colors"
+            >
+              {t.forgotPassword}
             </button>
           </div>
 
@@ -132,7 +153,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            Sign In
+            {t.signInButton}
           </motion.button>
 
           {/* Divider */}
@@ -141,7 +162,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              <span className="px-2 bg-white text-gray-500">{t.orContinue}</span>
             </div>
           </div>
 
@@ -153,15 +174,16 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               whileHover={{ scale: 1.02 }}
             >
               <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-              <span className="text-sm font-medium">Google</span>
+              <span className="text-sm font-medium">{t.google}</span>
             </motion.button>
+
             <motion.button
               type="button"
               className="flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               whileHover={{ scale: 1.02 }}
             >
               <img src="https://www.facebook.com/favicon.ico" alt="Facebook" className="w-5 h-5" />
-              <span className="text-sm font-medium">Facebook</span>
+              <span className="text-sm font-medium">{t.facebook}</span>
             </motion.button>
           </div>
         </motion.form>
@@ -169,12 +191,12 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
         {/* Footer */}
         <div className="text-center">
           <p className="text-gray-600">
-            Don't have an account?{" "}
+            {t.noAccount}{" "}
             <button
               onClick={onSwitchToSignUp}
               className="text-cyan-600 hover:text-cyan-700 font-medium transition-colors"
             >
-              Sign up here
+              {t.signUpHere}
             </button>
           </p>
         </div>
