@@ -12,6 +12,7 @@ import SignUp from './Components/SingUP/SignUP';
 import LawyersPage from './Components/LawyersPage/LawyersPage';
 import ContactPage from './Components/Contact/ContactPage';
 import ResourcesPage from './Components/ResourcesPage/ResourcesPage';
+import Dashboard from './Components/Dashboard/Dashboard';
 
 
 // Define your routes
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       { path: 'lawyers', element: < LawyersPage/> },
       { path: 'contact-us', element: < ContactPage/> },
       { path: 'resources', element: < ResourcesPage/> },
+      { path: 'admin', element: < Dashboard/> },
       
       
     ],
