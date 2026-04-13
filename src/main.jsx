@@ -13,6 +13,10 @@ import LawyersPage from './Components/LawyersPage/LawyersPage';
 import ContactPage from './Components/Contact/ContactPage';
 import ResourcesPage from './Components/ResourcesPage/ResourcesPage';
 import Dashboard from './Components/Dashboard/Dashboard';
+import Post from './Components/Post/Post';
+import UserProfile from './Components/UserProfile/UserProfile';
+import UserSettings from './Components/UserSettings/UserSettings';
+import UserDashboard from './Components/UserDashboard/UserDashboard';
 
 
 // Define your routes
@@ -28,6 +32,10 @@ const router = createBrowserRouter([
       { path: 'contact-us', element: < ContactPage/> },
       { path: 'resources', element: < ResourcesPage/> },
       { path: 'admin', element: < Dashboard/> },
+      { path: 'posts', element: < Post/> },
+      { path: 'profile', element: < UserProfile/> },
+      { path: 'settings', element: < UserSettings/> },
+      { path: 'lawyer/dashboard', element: < UserDashboard/> },
       
       
     ],

@@ -1,40 +1,113 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useSelector } from "react-redux"
-import { motion } from "framer-motion"
-import { Eye, EyeOff, Mail, Lock, Scale, ArrowLeft } from "lucide-react"
+import { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { motion } from "framer-motion";
+import { Eye, EyeOff, Mail, Lock, Scale, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-// ✅ IMPORT SIGNIN I18N JSON
-import signinI18n from "../../json/signin.json" // <-- adjust path if needed
+// JSON i18n file
+import signinI18n from "../../json/signin.json";
 
-const SignIn = ({ onBack, onSwitchToSignUp }) => {
-  const [showPassword, setShowPassword] = useState(false)
+// Redux actions
+import {
+  signInStart,
+  signInSuccess,
+  signInError,
+} from "../../Redux/UserSlice/UserSlice";
+
+const SignIn = ({ onBack }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // Redux state
+  const currentLanguage = useSelector((state) => state.language.currentLanguage);
+  const { loading, error } = useSelector((state) => state.user);
+
+  // Text from JSON
+  const t = signinI18n[currentLanguage].signin;
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
-  })
+  });
 
-  // ✅ Get current language from Redux
-  const currentLanguage = useSelector((state) => state.language.currentLanguage)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSuccessMessage("");
 
-  // ✅ Pick correct language texts
-  const t = signinI18n[currentLanguage].signin
+    try {
+      dispatch(signInStart());
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Sign in attempt:", formData)
-    // Handle sign in logic here
-  }
+      const res = await fetch("http://localhost:4000/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        dispatch(signInError(data.message || "Login failed"));
+        return;
+      }
+
+      dispatch(signInSuccess(data.user));
+
+      if (formData.rememberMe) {
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+        }
+      } else {
+        sessionStorage.setItem("currentUser", JSON.stringify(data.user));
+        if (data.token) {
+          sessionStorage.setItem("token", data.token);
+        }
+      }
+
+      setSuccessMessage(data.message || "Login successful");
+
+      setFormData({
+        email: "",
+        password: "",
+        rememberMe: false,
+      });
+
+      navigate("/");
+    } catch (err) {
+      dispatch(signInError(err.message || "Something went wrong"));
+    }
+  };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
-    }))
-  }
+    }));
+  };
+
+  const handleGoRegister = () => {
+    scroll(0,0)
+    navigate("/sign-up");
+  };
+
+  const handleBackHome = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate("/");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -46,9 +119,10 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
       >
         {/* Back Button */}
         <motion.button
-          onClick={onBack}
+          onClick={handleBackHome}
           className="flex items-center gap-2 text-cyan-600 hover:text-cyan-700 transition-colors"
           whileHover={{ x: -5 }}
+          type="button"
         >
           <ArrowLeft className="w-4 h-4" />
           {t.backHome}
@@ -65,7 +139,10 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
             <Scale className="w-8 h-8 text-cyan-600" />
             <h1 className="text-2xl font-bold text-gray-900">{t.brand}</h1>
           </motion.div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t.welcomeTitle}</h2>
+
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            {t.welcomeTitle}
+          </h2>
           <p className="text-gray-600">{t.welcomeDesc}</p>
         </div>
 
@@ -77,13 +154,27 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
+          {/* Success Message */}
+          {successMessage && (
+            <div className="w-full rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+              {successMessage}
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </div>
+          )}
+
           {/* Email Field */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t.emailLabel}
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="email"
                 name="email"
@@ -102,7 +193,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               {t.passwordLabel}
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
@@ -115,7 +206,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? (
                   <EyeOff className="w-5 h-5" />
@@ -138,6 +229,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               />
               <span className="text-sm text-gray-600">{t.rememberMe}</span>
             </label>
+
             <button
               type="button"
               className="text-sm text-cyan-600 hover:text-cyan-700 transition-colors"
@@ -149,11 +241,16 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
           {/* Submit Button */}
           <motion.button
             type="submit"
-            className="w-full bg-cyan-600 text-white py-3 rounded-lg font-semibold hover:bg-cyan-700 transition-colors"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={loading}
+            className={`w-full py-3 rounded-lg font-semibold transition-colors text-white ${
+              loading
+                ? "bg-cyan-400 cursor-not-allowed"
+                : "bg-cyan-600 hover:bg-cyan-700"
+            }`}
+            whileHover={loading ? {} : { scale: 1.02 }}
+            whileTap={loading ? {} : { scale: 0.98 }}
           >
-            {t.signInButton}
+            {loading ? "Signing in..." : t.signInButton}
           </motion.button>
 
           {/* Divider */}
@@ -173,7 +270,11 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               className="flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               whileHover={{ scale: 1.02 }}
             >
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+              <img
+                src="https://www.google.com/favicon.ico"
+                alt="Google"
+                className="w-5 h-5"
+              />
               <span className="text-sm font-medium">{t.google}</span>
             </motion.button>
 
@@ -182,7 +283,11 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
               className="flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               whileHover={{ scale: 1.02 }}
             >
-              <img src="https://www.facebook.com/favicon.ico" alt="Facebook" className="w-5 h-5" />
+              <img
+                src="https://www.facebook.com/favicon.ico"
+                alt="Facebook"
+                className="w-5 h-5"
+              />
               <span className="text-sm font-medium">{t.facebook}</span>
             </motion.button>
           </div>
@@ -193,8 +298,9 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
           <p className="text-gray-600">
             {t.noAccount}{" "}
             <button
-              onClick={onSwitchToSignUp}
+              onClick={handleGoRegister}
               className="text-cyan-600 hover:text-cyan-700 font-medium transition-colors"
+              type="button"
             >
               {t.signUpHere}
             </button>
@@ -202,7 +308,7 @@ const SignIn = ({ onBack, onSwitchToSignUp }) => {
         </div>
       </motion.div>
     </div>
-  )
-}
+  );
+};
 
-export default SignIn
+export default SignIn;
