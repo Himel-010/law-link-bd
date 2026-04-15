@@ -111,7 +111,7 @@ const Navbar = () => {
   const getDashboardRoute = (role) => {
     switch (role) {
       case "admin":
-        return "/admin/dashboard";
+        return "/admin";
       case "lawyer":
         return "/lawyer/dashboard";
       default:
