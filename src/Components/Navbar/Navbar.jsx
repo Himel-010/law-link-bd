@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,6 +16,7 @@ import {
   Settings,
   CircleUserRound,
 } from "lucide-react";
+import { LuCrown } from "react-icons/lu";
 import { useSelector, useDispatch } from "react-redux";
 import { toggleLanguage } from "../../Redux/LanguageSlice/LanguageSlice";
 import { signOutSuccess, restoreUser } from "../../Redux/UserSlice/UserSlice";
@@ -78,6 +79,7 @@ const Navbar = () => {
   const navItems = [
     { id: "home", path: "/" },
     { id: "lawyers", path: "/lawyers" },
+    { id: "plans", path: "/plans", icon: LuCrown, iconClass: "text-amber-500" },
     { id: "post", path: "/posts" },
     { id: "resources", path: "/resources" },
     { id: "contact", path: "/contact-us" },
@@ -172,34 +174,45 @@ const Navbar = () => {
 
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
-              >
-                <Link
-                  to={item.path}
-                  className={`relative px-6 py-3 text-sm font-semibold transition-all duration-300 rounded-xl group ${
-                    isActive(item.path)
-                      ? "text-white bg-gradient-to-r from-cyan-600 to-cyan-700 shadow-lg shadow-cyan-500/25"
-                      : "text-gray-700 hover:text-cyan-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="relative z-10">
-                    {navbarData.navItems[item.id][currentLanguage]}
-                  </span>
+            {navItems.map((item, index) => {
+              const NavIcon = item.icon;
 
-                  {!isActive(item.path) && (
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-cyan-50 to-cyan-100 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      layoutId="navbar-hover"
-                    />
-                  )}
-                </Link>
-              </motion.div>
-            ))}
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
+                >
+                  <Link
+                    to={item.path}
+                    className={`relative px-6 py-3 text-sm font-semibold transition-all duration-300 rounded-xl group inline-flex items-center gap-2 ${
+                      isActive(item.path)
+                        ? "text-white bg-gradient-to-r from-cyan-600 to-cyan-700 shadow-lg shadow-cyan-500/25"
+                        : "text-gray-700 hover:text-cyan-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      {NavIcon && (
+                        <NavIcon
+                          className={`text-[16px] ${
+                            isActive(item.path) ? "text-amber-300" : item.iconClass || ""
+                          }`}
+                        />
+                      )}
+                      {navbarData.navItems[item.id][currentLanguage]}
+                    </span>
+
+                    {!isActive(item.path) && (
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-cyan-50 to-cyan-100 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        layoutId="navbar-hover"
+                      />
+                    )}
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Desktop Right */}
@@ -444,26 +457,37 @@ const Navbar = () => {
                   </div>
                 )}
 
-                {navItems.map((item, index) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.08 }}
-                  >
-                    <Link
-                      to={item.path}
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center px-4 py-3 text-base font-semibold transition-all duration-300 rounded-xl ${
-                        isActive(item.path)
-                          ? "text-white bg-gradient-to-r from-cyan-600 to-cyan-700 shadow-lg shadow-cyan-500/25"
-                          : "text-gray-700 hover:text-cyan-600 hover:bg-cyan-50"
-                      }`}
+                {navItems.map((item, index) => {
+                  const NavIcon = item.icon;
+
+                  return (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.08 }}
                     >
-                      {navbarData.navItems[item.id][currentLanguage]}
-                    </Link>
-                  </motion.div>
-                ))}
+                      <Link
+                        to={item.path}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`flex items-center gap-2 px-4 py-3 text-base font-semibold transition-all duration-300 rounded-xl ${
+                          isActive(item.path)
+                            ? "text-white bg-gradient-to-r from-cyan-600 to-cyan-700 shadow-lg shadow-cyan-500/25"
+                            : "text-gray-700 hover:text-cyan-600 hover:bg-cyan-50"
+                        }`}
+                      >
+                        {NavIcon && (
+                          <NavIcon
+                            className={`text-[18px] ${
+                              isActive(item.path) ? "text-amber-300" : item.iconClass || ""
+                            }`}
+                          />
+                        )}
+                        {navbarData.navItems[item.id][currentLanguage]}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
 
                 <div className="border-t border-gray-200/50 pt-4 mt-4 space-y-2">
                   <p className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">

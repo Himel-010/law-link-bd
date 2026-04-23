@@ -60,7 +60,9 @@ const Sidebar = ({ menuItems, activeMenu, setActiveMenu }) => {
 
                 <FiChevronRight
                   className={`relative z-10 text-sm transition ${
-                    isActive ? "translate-x-0 opacity-100" : "-translate-x-1 opacity-0"
+                    isActive
+                      ? "translate-x-0 opacity-100"
+                      : "-translate-x-1 opacity-0"
                   }`}
                 />
 
@@ -77,7 +79,9 @@ const Sidebar = ({ menuItems, activeMenu, setActiveMenu }) => {
         </nav>
 
         <div className="mt-auto rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/20 to-indigo-500/10 p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Upgrade</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            Upgrade
+          </p>
           <h3 className="mt-2 text-lg font-semibold leading-snug">
             Unlock premium tools for better workflow
           </h3>

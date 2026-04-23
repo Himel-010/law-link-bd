@@ -25,7 +25,7 @@ const SignIn = ({ onBack }) => {
   const { loading, error } = useSelector((state) => state.user);
 
   // Text from JSON
-  const t = signinI18n[currentLanguage].signin;
+  const t = signinI18n[currentLanguage]?.signin || signinI18n.en.signin;
 
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -34,6 +34,23 @@ const SignIn = ({ onBack }) => {
     password: "",
     rememberMe: false,
   });
+
+  const clearStoredAuth = () => {
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("currentUser");
+    sessionStorage.removeItem("token");
+  };
+
+  const saveAuthData = (user, token, rememberMe) => {
+    const storage = rememberMe ? localStorage : sessionStorage;
+
+    // clear old data first
+    clearStoredAuth();
+
+    storage.setItem("currentUser", JSON.stringify(user));
+    storage.setItem("token", token);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +65,7 @@ const SignIn = ({ onBack }) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: formData.email,
+          email: formData.email.trim(),
           password: formData.password,
         }),
       });
@@ -56,25 +73,19 @@ const SignIn = ({ onBack }) => {
       const data = await res.json();
 
       if (!res.ok) {
-        dispatch(signInError(data.message || "Login failed"));
+        dispatch(signInError(data?.message || "Login failed"));
         return;
       }
 
-      dispatch(signInSuccess(data.user));
-
-      if (formData.rememberMe) {
-        localStorage.setItem("currentUser", JSON.stringify(data.user));
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
-      } else {
-        sessionStorage.setItem("currentUser", JSON.stringify(data.user));
-        if (data.token) {
-          sessionStorage.setItem("token", data.token);
-        }
+      if (!data?.user || !data?.token) {
+        dispatch(signInError("Login response missing user or token"));
+        return;
       }
 
-      setSuccessMessage(data.message || "Login successful");
+      saveAuthData(data.user, data.token, formData.rememberMe);
+
+      dispatch(signInSuccess(data.user));
+      setSuccessMessage(data?.message || "Login successful");
 
       setFormData({
         email: "",
@@ -97,7 +108,7 @@ const SignIn = ({ onBack }) => {
   };
 
   const handleGoRegister = () => {
-    scroll(0,0)
+    window.scrollTo(0, 0);
     navigate("/sign-up");
   };
 
@@ -259,7 +270,9 @@ const SignIn = ({ onBack }) => {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">{t.orContinue}</span>
+              <span className="px-2 bg-white text-gray-500">
+                {t.orContinue}
+              </span>
             </div>
           </div>
 

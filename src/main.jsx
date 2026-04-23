@@ -17,6 +17,7 @@ import Post from './Components/Post/Post';
 import UserProfile from './Components/UserProfile/UserProfile';
 import UserSettings from './Components/UserSettings/UserSettings';
 import UserDashboard from './Components/UserDashboard/UserDashboard';
+import PlansPage from './Components/Plans/PlansPage';
 
 
 // Define your routes
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
       { path: 'profile', element: < UserProfile/> },
       { path: 'settings', element: < UserSettings/> },
       { path: 'lawyer/dashboard', element: < UserDashboard/> },
+      { path: 'plans', element: < PlansPage/> },
       
       
     ],

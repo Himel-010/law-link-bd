@@ -10,6 +10,8 @@ import {
   FiFolder,
   FiCheckCircle,
   FiFileText,
+  FiLayers,
+  FiPackage,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -22,6 +24,8 @@ import AnalyticsContent from "./AnalyticsContent";
 import BillingContent from "./BillingContent";
 import SettingsContent from "./SettingsContent";
 import PostContent from "./PostContent";
+import AdminSubscriptionContent from "./AdminSubscription";
+import AdminPlanContent from "./AdminPlanContent";
 
 const Dashboard = () => {
   const [activeMenu, setActiveMenu] = useState("overview");
@@ -31,6 +35,8 @@ const Dashboard = () => {
     { id: "clients", label: "Clients", icon: FiUsers },
     { id: "projects", label: "Projects", icon: FiBriefcase },
     { id: "posts", label: "Posts", icon: FiFileText },
+    { id: "plans", label: "Plans", icon: FiPackage },
+    { id: "subscriptions", label: "Subscriptions", icon: FiLayers },
     { id: "analytics", label: "Analytics", icon: FiBarChart2 },
     { id: "billing", label: "Billing", icon: FiCreditCard },
     { id: "settings", label: "Settings", icon: FiSettings },
@@ -206,6 +212,10 @@ const Dashboard = () => {
         return <ProjectsContent projects={projects} />;
       case "posts":
         return <PostContent posts={posts} />;
+      case "plans":
+        return <AdminPlanContent />;
+      case "subscriptions":
+        return <AdminSubscriptionContent />;
       case "analytics":
         return <AnalyticsContent analyticsBars={analyticsBars} />;
       case "billing":

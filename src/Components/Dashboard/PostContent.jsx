@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const API_BASE = "http://localhost:4000/api/posts";
 
@@ -33,6 +33,30 @@ const categoryOptions = [
 
 const urgencyOptions = ["low", "medium", "high"];
 const statusOptions = ["open", "in_progress", "closed", "cancelled"];
+
+const getStoredAuth = () => {
+  const localUser = localStorage.getItem("currentUser");
+  const sessionUser = sessionStorage.getItem("currentUser");
+  const localToken = localStorage.getItem("token");
+  const sessionToken = sessionStorage.getItem("token");
+
+  let user = null;
+  let token = "";
+
+  try {
+    if (localToken && localUser) {
+      user = JSON.parse(localUser);
+      token = localToken;
+    } else if (sessionToken && sessionUser) {
+      user = JSON.parse(sessionUser);
+      token = sessionToken;
+    }
+  } catch (error) {
+    console.error("Auth parse error:", error);
+  }
+
+  return { user, token };
+};
 
 const formatCurrency = (value) => {
   const num = Number(value || 0);
@@ -498,19 +522,32 @@ export default function AdminPostsManager() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [formData, setFormData] = useState(initialForm);
+  const [authUser, setAuthUser] = useState(null);
+  const [token, setToken] = useState("");
 
-  const token = useMemo(() => localStorage.getItem("token") || "", []);
+  useEffect(() => {
+    const auth = getStoredAuth();
+    setAuthUser(auth.user);
+    setToken(auth.token);
+  }, []);
 
-  const authHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
+  const isAdmin = useMemo(() => authUser?.role === "admin", [authUser]);
+
+  const authHeaders = useMemo(() => {
+    if (!token) return {};
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+  }, [token]);
 
   const stats = useMemo(() => {
     const total = posts.length;
@@ -521,7 +558,14 @@ export default function AdminPostsManager() {
     return { total, open, inProgress, priority };
   }, [posts]);
 
-  const fetchPosts = async () => {
+  const clearAlerts = () => {
+    setError("");
+    setMessage("");
+  };
+
+  const fetchPosts = useCallback(async () => {
+    if (!token || !isAdmin) return;
+
     try {
       setLoading(true);
       setError("");
@@ -540,35 +584,44 @@ export default function AdminPostsManager() {
 
       setPosts(data.data || []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to fetch posts");
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, isAdmin, search, authHeaders]);
 
-  const fetchSinglePost = async (id) => {
-    try {
-      setError("");
-      const res = await fetch(`${API_BASE}/admin/${id}`, {
-        method: "GET",
-        headers: authHeaders,
-      });
+  const fetchSinglePost = useCallback(
+    async (id) => {
+      if (!token || !isAdmin) return;
 
-      const data = await res.json();
+      try {
+        setDetailLoading(true);
+        setError("");
 
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to fetch post");
+        const res = await fetch(`${API_BASE}/admin/${id}`, {
+          method: "GET",
+          headers: authHeaders,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to fetch post");
+        }
+
+        setSelectedPost(data.data);
+      } catch (err) {
+        setError(err.message || "Failed to fetch post");
+      } finally {
+        setDetailLoading(false);
       }
-
-      setSelectedPost(data.data);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+    },
+    [token, isAdmin, authHeaders]
+  );
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [fetchPosts]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -589,13 +642,29 @@ export default function AdminPostsManager() {
     setEditingId(null);
   };
 
+  const refreshAfterMutation = async (postId = null) => {
+    await fetchPosts();
+    if (postId) {
+      await fetchSinglePost(postId);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!token) {
+      setError("Login token paoa jai nai. Please abar login koro.");
+      return;
+    }
+
+    if (!authUser || !isAdmin) {
+      setError("Only admin can access this page.");
+      return;
+    }
+
     try {
       setFormLoading(true);
-      setError("");
-      setMessage("");
+      clearAlerts();
 
       const payload = {
         ...formData,
@@ -627,10 +696,11 @@ export default function AdminPostsManager() {
       }
 
       setMessage(data.message || "Success");
+      const affectedId = editingId || data.data?._id || null;
       resetForm();
-      fetchPosts();
+      await refreshAfterMutation(affectedId);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Request failed");
     } finally {
       setFormLoading(false);
     }
@@ -666,8 +736,8 @@ export default function AdminPostsManager() {
     if (!confirmDelete) return;
 
     try {
-      setError("");
-      setMessage("");
+      setActionLoading(true);
+      clearAlerts();
 
       const res = await fetch(`${API_BASE}/admin/delete/${id}`, {
         method: "DELETE",
@@ -682,16 +752,18 @@ export default function AdminPostsManager() {
 
       setMessage(data.message || "Post deleted successfully");
       if (selectedPost?._id === id) setSelectedPost(null);
-      fetchPosts();
+      await fetchPosts();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Delete failed");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleStatusAction = async (id, action) => {
     try {
-      setError("");
-      setMessage("");
+      setActionLoading(true);
+      clearAlerts();
 
       const res = await fetch(`${API_BASE}/${id}/${action}`, {
         method: "PATCH",
@@ -705,20 +777,18 @@ export default function AdminPostsManager() {
       }
 
       setMessage(data.message || "Status updated");
-      fetchPosts();
-
-      if (selectedPost?._id === id) {
-        fetchSinglePost(id);
-      }
+      await refreshAfterMutation(id);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to update status");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleAcceptBid = async (postId, bidId) => {
     try {
-      setError("");
-      setMessage("");
+      setActionLoading(true);
+      clearAlerts();
 
       const res = await fetch(`${API_BASE}/${postId}/accept-bid/${bidId}`, {
         method: "PATCH",
@@ -732,16 +802,53 @@ export default function AdminPostsManager() {
       }
 
       setMessage(data.message || "Bid accepted successfully");
-      fetchPosts();
-      fetchSinglePost(postId);
+      await refreshAfterMutation(postId);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to accept bid");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const renderBadge = (label, customStyle) => (
     <span style={{ ...styles.chip, ...customStyle }}>{label}</span>
   );
+
+  if (!token) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.shell}>
+          <div style={{ ...styles.alertBase, ...styles.danger }}>
+            Login token paoa jai nai. Please abar login koro.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.shell}>
+          <div style={{ ...styles.alertBase, ...styles.danger }}>
+            Current user data paoa jai nai. Please abar login koro.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.shell}>
+          <div style={{ ...styles.alertBase, ...styles.danger }}>
+            Forbidden: Only admin can access posts management.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
@@ -1033,8 +1140,12 @@ export default function AdminPostsManager() {
                     onChange={(e) => setSearch(e.target.value)}
                     style={styles.searchInput}
                   />
-                  <button onClick={fetchPosts} style={styles.primaryButton}>
-                    Search
+                  <button
+                    onClick={fetchPosts}
+                    style={styles.primaryButton}
+                    disabled={loading}
+                  >
+                    {loading ? "Searching..." : "Search"}
                   </button>
                 </div>
               </div>
@@ -1107,8 +1218,11 @@ export default function AdminPostsManager() {
                         <button
                           onClick={() => fetchSinglePost(post._id)}
                           style={styles.darkSoftButton}
+                          disabled={detailLoading}
                         >
-                          View Details
+                          {detailLoading && selectedPost?._id !== post._id
+                            ? "Loading..."
+                            : "View Details"}
                         </button>
 
                         <button
@@ -1121,6 +1235,7 @@ export default function AdminPostsManager() {
                         <button
                           onClick={() => handleDelete(post._id)}
                           style={styles.destructiveButton}
+                          disabled={actionLoading}
                         >
                           Delete
                         </button>
@@ -1131,6 +1246,7 @@ export default function AdminPostsManager() {
                               handleStatusAction(post._id, "close")
                             }
                             style={styles.softButton}
+                            disabled={actionLoading}
                           >
                             Close
                           </button>
@@ -1143,6 +1259,7 @@ export default function AdminPostsManager() {
                                 handleStatusAction(post._id, "cancel")
                               }
                               style={styles.softButton}
+                              disabled={actionLoading}
                             >
                               Cancel
                             </button>
@@ -1188,202 +1305,209 @@ export default function AdminPostsManager() {
               </div>
 
               <div style={styles.panelBody}>
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Title</div>
-                    <div style={styles.detailValue}>{selectedPost.title}</div>
-                  </div>
+                {detailLoading ? (
+                  <div style={styles.emptyState}>Loading post details...</div>
+                ) : (
+                  <>
+                    <div style={styles.detailGrid}>
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Title</div>
+                        <div style={styles.detailValue}>{selectedPost.title}</div>
+                      </div>
 
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Client</div>
-                    <div style={styles.detailValue}>
-                      {selectedPost.client?.name || "N/A"}
-                      <br />
-                      <span style={{ color: "#667085", fontWeight: 500 }}>
-                        {selectedPost.client?.email || "No email"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Selected Lawyer</div>
-                    <div style={styles.detailValue}>
-                      {selectedPost.selectedLawyer?.name || "Not selected"}
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Category</div>
-                    <div style={styles.detailValue}>
-                      {selectedPost.category || "N/A"}
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Location</div>
-                    <div style={styles.detailValue}>
-                      {selectedPost.division || "N/A"}
-                      {selectedPost.district
-                        ? `, ${selectedPost.district}`
-                        : ""}
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Budget Range</div>
-                    <div style={styles.detailValue}>
-                      {formatCurrency(selectedPost.budgetMin)} -{" "}
-                      {formatCurrency(selectedPost.budgetMax)}
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Expires At</div>
-                    <div style={styles.detailValue}>
-                      {formatDateTime(selectedPost.expiresAt)}
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Documents</div>
-                    <div style={styles.detailValue}>
-                      {selectedPost.documents?.length
-                        ? selectedPost.documents.length
-                        : 0}{" "}
-                      linked file(s)
-                    </div>
-                  </div>
-
-                  <div style={styles.detailCard}>
-                    <div style={styles.detailLabel}>Total Bids</div>
-                    <div style={styles.detailValue}>
-                      {selectedPost.bids?.length || 0}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ ...styles.detailCard, marginBottom: "20px" }}>
-                  <div style={styles.detailLabel}>Description</div>
-                  <div style={{ ...styles.detailValue, fontWeight: 500 }}>
-                    {selectedPost.description}
-                  </div>
-                </div>
-
-                <div>
-                  <h3
-                    style={{
-                      marginTop: 0,
-                      marginBottom: "14px",
-                      fontSize: "18px",
-                      fontWeight: 800,
-                      color: "#101828",
-                    }}
-                  >
-                    Bids
-                  </h3>
-
-                  {!selectedPost.bids || selectedPost.bids.length === 0 ? (
-                    <div style={styles.emptyState}>No bids found.</div>
-                  ) : (
-                    <div style={styles.bidsGrid}>
-                      {selectedPost.bids.map((bid) => (
-                        <div key={bid._id} style={styles.bidCard}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "flex-start",
-                              gap: "12px",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <div>
-                              <h4
-                                style={{
-                                  margin: 0,
-                                  fontSize: "18px",
-                                  fontWeight: 800,
-                                  color: "#101828",
-                                }}
-                              >
-                                {bid.lawyer?.name || "Unknown Lawyer"}
-                              </h4>
-                              <p
-                                style={{
-                                  margin: "6px 0 0",
-                                  color: "#667085",
-                                  fontSize: "14px",
-                                }}
-                              >
-                                {bid.lawyer?.email || "No email"}
-                              </p>
-                            </div>
-
-                            {renderBadge(bid.status || "pending", {
-                              background: "#f8fafc",
-                              color: "#344054",
-                              border: "1px solid #d0d5dd",
-                            })}
-                          </div>
-
-                          <div style={styles.bidGrid}>
-                            <div style={styles.bidMeta}>
-                              <div style={styles.detailLabel}>Proposed Fee</div>
-                              <div style={styles.detailValue}>
-                                {formatCurrency(bid.proposedFee)}
-                              </div>
-                            </div>
-
-                            <div style={styles.bidMeta}>
-                              <div style={styles.detailLabel}>Estimated Days</div>
-                              <div style={styles.detailValue}>
-                                {bid.estimatedDays || 0} day(s)
-                              </div>
-                            </div>
-
-                            <div style={styles.bidMeta}>
-                              <div style={styles.detailLabel}>Bid Status</div>
-                              <div style={styles.detailValue}>
-                                {bid.status || "N/A"}
-                              </div>
-                            </div>
-
-                            <div style={styles.bidMeta}>
-                              <div style={styles.detailLabel}>Lawyer</div>
-                              <div style={styles.detailValue}>
-                                {bid.lawyer?.name || "N/A"}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ ...styles.bidMeta, marginBottom: "12px" }}>
-                            <div style={styles.detailLabel}>Message</div>
-                            <div
-                              style={{
-                                ...styles.detailValue,
-                                fontWeight: 500,
-                              }}
-                            >
-                              {bid.message || "No message provided"}
-                            </div>
-                          </div>
-
-                          {selectedPost.status === "open" &&
-                            bid.status !== "withdrawn" && (
-                              <button
-                                onClick={() =>
-                                  handleAcceptBid(selectedPost._id, bid._id)
-                                }
-                                style={styles.primaryButton}
-                              >
-                                Accept Bid
-                              </button>
-                            )}
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Client</div>
+                        <div style={styles.detailValue}>
+                          {selectedPost.client?.name || "N/A"}
+                          <br />
+                          <span style={{ color: "#667085", fontWeight: 500 }}>
+                            {selectedPost.client?.email || "No email"}
+                          </span>
                         </div>
-                      ))}
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Selected Lawyer</div>
+                        <div style={styles.detailValue}>
+                          {selectedPost.selectedLawyer?.name || "Not selected"}
+                        </div>
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Category</div>
+                        <div style={styles.detailValue}>
+                          {selectedPost.category || "N/A"}
+                        </div>
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Location</div>
+                        <div style={styles.detailValue}>
+                          {selectedPost.division || "N/A"}
+                          {selectedPost.district
+                            ? `, ${selectedPost.district}`
+                            : ""}
+                        </div>
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Budget Range</div>
+                        <div style={styles.detailValue}>
+                          {formatCurrency(selectedPost.budgetMin)} -{" "}
+                          {formatCurrency(selectedPost.budgetMax)}
+                        </div>
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Expires At</div>
+                        <div style={styles.detailValue}>
+                          {formatDateTime(selectedPost.expiresAt)}
+                        </div>
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Documents</div>
+                        <div style={styles.detailValue}>
+                          {selectedPost.documents?.length
+                            ? selectedPost.documents.length
+                            : 0}{" "}
+                          linked file(s)
+                        </div>
+                      </div>
+
+                      <div style={styles.detailCard}>
+                        <div style={styles.detailLabel}>Total Bids</div>
+                        <div style={styles.detailValue}>
+                          {selectedPost.bids?.length || 0}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    <div style={{ ...styles.detailCard, marginBottom: "20px" }}>
+                      <div style={styles.detailLabel}>Description</div>
+                      <div style={{ ...styles.detailValue, fontWeight: 500 }}>
+                        {selectedPost.description}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3
+                        style={{
+                          marginTop: 0,
+                          marginBottom: "14px",
+                          fontSize: "18px",
+                          fontWeight: 800,
+                          color: "#101828",
+                        }}
+                      >
+                        Bids
+                      </h3>
+
+                      {!selectedPost.bids || selectedPost.bids.length === 0 ? (
+                        <div style={styles.emptyState}>No bids found.</div>
+                      ) : (
+                        <div style={styles.bidsGrid}>
+                          {selectedPost.bids.map((bid) => (
+                            <div key={bid._id} style={styles.bidCard}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "flex-start",
+                                  gap: "12px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <div>
+                                  <h4
+                                    style={{
+                                      margin: 0,
+                                      fontSize: "18px",
+                                      fontWeight: 800,
+                                      color: "#101828",
+                                    }}
+                                  >
+                                    {bid.lawyer?.name || "Unknown Lawyer"}
+                                  </h4>
+                                  <p
+                                    style={{
+                                      margin: "6px 0 0",
+                                      color: "#667085",
+                                      fontSize: "14px",
+                                    }}
+                                  >
+                                    {bid.lawyer?.email || "No email"}
+                                  </p>
+                                </div>
+
+                                {renderBadge(bid.status || "pending", {
+                                  background: "#f8fafc",
+                                  color: "#344054",
+                                  border: "1px solid #d0d5dd",
+                                })}
+                              </div>
+
+                              <div style={styles.bidGrid}>
+                                <div style={styles.bidMeta}>
+                                  <div style={styles.detailLabel}>Proposed Fee</div>
+                                  <div style={styles.detailValue}>
+                                    {formatCurrency(bid.proposedFee)}
+                                  </div>
+                                </div>
+
+                                <div style={styles.bidMeta}>
+                                  <div style={styles.detailLabel}>Estimated Days</div>
+                                  <div style={styles.detailValue}>
+                                    {bid.estimatedDays || 0} day(s)
+                                  </div>
+                                </div>
+
+                                <div style={styles.bidMeta}>
+                                  <div style={styles.detailLabel}>Bid Status</div>
+                                  <div style={styles.detailValue}>
+                                    {bid.status || "N/A"}
+                                  </div>
+                                </div>
+
+                                <div style={styles.bidMeta}>
+                                  <div style={styles.detailLabel}>Lawyer</div>
+                                  <div style={styles.detailValue}>
+                                    {bid.lawyer?.name || "N/A"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div style={{ ...styles.bidMeta, marginBottom: "12px" }}>
+                                <div style={styles.detailLabel}>Message</div>
+                                <div
+                                  style={{
+                                    ...styles.detailValue,
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {bid.message || "No message provided"}
+                                </div>
+                              </div>
+
+                              {selectedPost.status === "open" &&
+                                bid.status !== "withdrawn" && (
+                                  <button
+                                    onClick={() =>
+                                      handleAcceptBid(selectedPost._id, bid._id)
+                                    }
+                                    style={styles.primaryButton}
+                                    disabled={actionLoading}
+                                  >
+                                    {actionLoading ? "Processing..." : "Accept Bid"}
+                                  </button>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
